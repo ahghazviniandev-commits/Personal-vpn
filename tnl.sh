@@ -1,71 +1,59 @@
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root."
-  exit
+#!/bin/bash
+
+# Must run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root."
+  exit 1
 fi
-#echo nameserver 8.8.8.8 | sudo tee /etc/resolv.conf
 
-
+# Check if RTT is already running
 if pgrep -x "RTT" > /dev/null; then
-	echo "Tunnel is running!. you must stop the tunnel before update. (pkill RTT)"
-	echo "update is canceled."
-  exit
+  echo "Tunnel is running! Stop it before updating."
+  echo "Run: pkill RTT"
+  exit 1
 fi
 
+echo "Updating package lists..."
+apt update -y
 
+# Install required packages
+echo "Installing dependencies..."
+apt install -y unzip wget lsof
 
-apt-get update -y
+echo ""
+echo "Downloading ReverseTlsTunnel..."
+echo ""
 
-REQUIRED_PKG="unzip"
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
-echo Checking for $REQUIRED_PKG: $PKG_OK
-if [ "" = "$PKG_OK" ]; then
-  echo "Setting up $REQUIRED_PKG."
-  sudo apt-get --yes install $REQUIRED_PKG
-fi
+# Detect architecture
+ARCH=$(uname -m)
 
-REQUIRED_PKG="wget"
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
-echo Checking for $REQUIRED_PKG: $PKG_OK
-if [ "" = "$PKG_OK" ]; then
-  echo "Setting up $REQUIRED_PKG."
-  sudo apt-get --yes install $REQUIRED_PKG
-fi
-
-REQUIRED_PKG="lsof"
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
-echo Checking for $REQUIRED_PKG: $PKG_OK
-if [ "" = "$PKG_OK" ]; then
-  echo "Setting up $REQUIRED_PKG."
-  sudo apt-get --yes install $REQUIRED_PKG
-fi
-
-
-
-
-printf  "\n"
-printf  "\n"
-
-
-echo "downloading ReverseTlsTunnel"
-
-printf  "\n"
-
-
-case $(uname -m) in
-    x86_64)  URL="https://github.com/radkesvat/ReverseTlsTunnel/releases/download/V6.9/v6.9_linux_amd64.zip" ;;
-    arm)     URL="https://github.com/radkesvat/ReverseTlsTunnel/releases/download/V6.9/v6.9_linux_arm64.zip" ;;
-    aarch64) URL="https://github.com/radkesvat/ReverseTlsTunnel/releases/download/V6.9/v6.9_linux_arm64.zip" ;;
-    
-    *)   echo "Unable to determine system architecture."; exit 1 ;;
-
+case "$ARCH" in
+  x86_64)
+    URL="https://github.com/radkesvat/ReverseTlsTunnel/releases/download/V6.9/v6.9_linux_amd64.zip"
+    FILE="v6.9_linux_amd64.zip"
+    ;;
+  arm|aarch64)
+    URL="https://github.com/radkesvat/ReverseTlsTunnel/releases/download/V6.9/v6.9_linux_arm64.zip"
+    FILE="v6.9_linux_arm64.zip"
+    ;;
+  *)
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
 esac
 
+# Download
+wget -O "$FILE" "$URL"
 
-wget  $URL -O v6.9_linux_amd64.zip
-unzip -o v6.9_linux_amd64.zip
+# Extract
+unzip -o "$FILE"
+
+# Make executable
 chmod +x RTT
-rm v6.9_linux_amd64.zip
 
-echo "finished."
+# Cleanup
+rm "$FILE"
 
-printf  "\n"
+echo ""
+echo "ReverseTlsTunnel installation finished."
+echo ""
